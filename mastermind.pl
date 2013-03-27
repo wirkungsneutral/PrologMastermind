@@ -1,3 +1,5 @@
+:- use_module(library(random)).
+:- use_module(library(clpfd)).
 
 %http://www.cs.oswego.edu/~odendahl/coursework/notes/prolog/synopsis/con.html
 a([]) :- give_random_color(C),print_color(C).
@@ -6,7 +8,10 @@ println(A):-write(A),nl.
 %print(A):-write(A).
 %test([]) : give_white([1,3,3,1],[1, 2, 2 ,2],).
 
-give_random_color(C):- random_between(1,6,C).
+%Fuer Windows
+%give_random_color(C):- random_between(1,6,C).
+%Fuer Linux, obwohl deprecated, aber random_between findet er nicht, wohl zu neu
+give_random_color(C):- random(1,7,C).
 
 print_color(1):- write('green').
 print_color(2):- write('yellow').
