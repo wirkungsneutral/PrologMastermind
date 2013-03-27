@@ -35,24 +35,81 @@ fight(Answer,MaxAttempts):-
 
 init(Answer,FirstAttempt):- 
 	write('[init] Correct answer: '),
-	println(Answer),
+	print_try(Answer),
 	write('[init] Length: '),
 	length(Answer,L),
 	println(L),
-	gen_random(L,FirstAttempt),
+	gen_random(L,FirstAttempt1),
 	write('[init] Testing: '),
-	print_try(FirstAttempt)
+	print_try(FirstAttempt1),
+	calc_guess(FirstAttempt1, Answer, B, W),
+	write('[init] Black: '),write(B),write('  White: '),println(W),
+	append([FirstAttempt1],[B,W],FirstAttempt),
+	!
 .
+
  
 fight_loop(_,_,0):- 
-	println('[fight_loop] I lost :('),!
+	println('[fight_loop] I lost :('),
+	!
 .
 
 fight_loop(Answer, AlreadyTried, AttemptsLeft) :- 
-	write('[fight_loop] Attempts Left:'),nl,
+	write('[fight_loop] Attempts Left: '),
+	writeln(AttemptsLeft), 
 	Attempts is AttemptsLeft - 1,
-	fight_loop(Answer,AlreadyTried,Attempts)
+	get_possible_answer(Guess,AlreadyTried),
+	write('[fight_loop] I guess: '),
+	print_try(Guess),
+	calc_guess(Guess, Answer, B,W), 
+	write('[fight_loop] Black: '),write(B),write('  White: '),println(W),
+	fight_loop(Answer,[AlreadyTried,[Guess,B,W]],Attempts),
+	!
 .
+
+
+get_possible_answer(_,[]). %:-println('End of life').
+get_possible_answer(Guess, [[PreviousTry,Blacks,Whites]|ATR]):-
+	%println(Guess), 
+	Guess\==PreviousTry,
+	%println(Guess),
+	calc_guess(Guess,PreviousTry,Blacks,Whites),
+	calc_guess(Guess,PreviousTry,Blacks,Whites),
+	%println(Guess), 
+	get_possible_answer(Guess,ATR),
+	%println(Guess),	
+	number_constraint(Guess)
+. 
+
+number_constraint([]).
+number_constraint([GH|GR]):-
+	GH #<7,
+	GH #>0, labeling([],[GH]),
+	number_constraint(GR)
+.
+
+check_h(Guess,Answer,B,W):-
+	check(Guess,Answer,Answer,[],W,B)
+.
+check([],_,_,H,W,0):-length(H,W).
+check([E|GR],[E|AT],A,H,W,B):-
+	delete_first_occurence(H, E, H1),
+	check(GR,AT,A,H1,W,B1),
+	B is B1 + 1
+.
+check([GH|GR],[AH|AT],A,H,W,B):-
+	GH\==AH,
+	member(GH,A),
+	delete_first_occurence(A, GH, A1),
+	append([GH],H,H1),
+	check(GR,AT,A1,H1,W,B)
+.
+check([GH|GR],[AH|AT],A,H,W,B):-
+	GH\==AH,
+	nonmember(GH,A),
+	check(GR,AT,A,H,W,B)
+.
+	
 
 gen_random(0,[]).
 gen_random(Length, R):-
@@ -77,14 +134,17 @@ nonmember(E,[LH|LR]):- E\==LH, nonmember(E,LR).
 % +Answer:
 % -Blacks:
 % -Whites:
-calc_guess(Guess, Answer, Blacks, Whites) :-
-	calc_black(Guess, Answer, Blacks),
-	Blacks == 4,
-	println('Gewonnen'), !.
+%calc_guess(Guess, Answer, Blacks, _) :-
+%	calc_black(Guess, Answer, Blacks),
+%	Blacks == 4,
+%	println('Gewonnen'), !.
 
 calc_guess(Guess, Answer, Blacks, Whites) :-
 	calc_black(Guess, Answer, Blacks),
+%	println(Guess),
+%	println(Blacks),
 	calc_white(Guess, Answer, Help),
+%	println(Help),
 	Whites is Help - Blacks.
 
 % Guess List, Answer List, Number of Black Pins
