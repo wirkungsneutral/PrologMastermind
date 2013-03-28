@@ -1,12 +1,12 @@
 
 %http://www.cs.oswego.edu/~odendahl/coursework/notes/prolog/synopsis/con.html
-a([]) :- give_random_color(C),print_color(C).
+a([]) :- get_random_color(C),print_color(C).
 
 println(A):-write(A),nl.
 %print(A):-write(A).
 %test([]) : give_white([1,3,3,1],[1, 2, 2 ,2],).
 
-give_random_color(C):- random_between(1,6,C).
+get_random_color(C):- random_between(1,6,C).
 
 print_color(1):- write('green').
 print_color(2):- write('yellow').
@@ -17,14 +17,14 @@ print_color(6):- write('orange').
 
 print_try(A):-write('['),print_try_h(A).
 print_try_h([]):- 
-	println(']').
+	println(']'),!.
 print_try_h([AH|[]]):- 
-	print_color(AH),
-	println(']').
+	print_color(AH), 
+	println(']'),!.
 print_try_h([AH|AR]):-
 	print_color(AH),
 	write(', '),
-	print_try_h(AR)
+	print_try_h(AR),!
 .	
 
 fight(Answer,MaxAttempts):-
@@ -36,16 +36,18 @@ fight(Answer,MaxAttempts):-
 init(Answer,FirstAttempt):- 
 	write('[init] Correct answer: '),
 	print_try(Answer),
-	write('[init] Length: '),
+	write('[init] Length: '), 
 	length(Answer,L),
 	println(L),
 	gen_random(L,FirstAttempt1),
 	write('[init] Testing: '),
 	print_try(FirstAttempt1),
+	writeln(FirstAttempt1),
+	writeln(Answer),
 	calc_guess(FirstAttempt1, Answer, B, W),
 	write('[init] Black: '),write(B),write('  White: '),println(W),
-	append([FirstAttempt1],[B,W],FirstAttempt),
-	!
+	%append([FirstAttempt1],[B,W],FirstAttempt) 
+	FirstAttempt = FirstAttempt1,!
 .
 
  
@@ -78,14 +80,21 @@ get_possible_answer(Guess, [[PreviousTry,Blacks,Whites]|ATR]):-
 	%println(Guess), 
 	get_possible_answer(Guess,ATR),
 	%println(Guess),	
-	number_constraint(Guess)
+	add_random_colors(Guess)
 . 
 
-number_constraint([]).
-number_constraint([GH|GR]):-
-	GH #<7,
-	GH #>0, labeling([],[GH]),
-	number_constraint(GR)
+add_random_colors([], []).
+add_random_colors([GH|GR], Guess):-
+	ground(GH),
+	add_random_colors(GR, Guess1),
+	append([GH], Guess1, Guess)
+.
+add_random_colors([GH|GR], Guess):-
+	not(ground(GH)),
+	write('not'),
+	get_random_color(C),
+	add_random_colors(GR, Guess1),
+	append([C], Guess1, Guess)
 .
 
 check_h(Guess,Answer,B,W):-
@@ -115,7 +124,7 @@ gen_random(0,[]).
 gen_random(Length, R):-
 	L is Length -1,	
 	gen_random(L,R1),
-	give_random_color(C),
+	get_random_color(C),
 	append([C],R1,R)
 .
  
@@ -163,7 +172,7 @@ calc_black([A|GR], [B|AR], Blacks) :-
 calc_white([], _, Whites) :- 
 	Whites is 0.
 
-calc_white([GH|GR], A, Whites) :-
+calc_white([GH|GR], A, Whites) :- 
 	member(GH, A), 
 	delete_first_occurence(A, GH, AwithoutGH),
 	calc_white(GR, AwithoutGH, X), 
