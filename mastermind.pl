@@ -36,8 +36,8 @@ print_try_h([AH|AR]):-
 
 fight(Answer,MaxAttempts):-
 	init(Answer,FirstAttempt), 
-	Attempts is MaxAttempts - 1, 
-	fight_loop(Answer, [FirstAttempt], Attempts)
+	AttemptsLeft is MaxAttempts - 1, 
+	fight_loop(Answer, FirstAttempt, AttemptsLeft)
 . 
 
 init(Answer,FirstAttempt):- 
@@ -51,12 +51,16 @@ init(Answer,FirstAttempt):-
 	print_try(FirstAttempt1),
 	writeln(FirstAttempt1),
 	writeln(Answer),
-	calc_guess(FirstAttempt1, Answer, B, W),
+	check_h(FirstAttempt1, Answer, B, W),
 	write('[init] Black: '),write(B),write('  White: '),println(W),
 	%append([FirstAttempt1],[B,W],FirstAttempt) 
-	FirstAttempt = FirstAttempt1,!
+	FirstAttempt = [[FirstAttempt1,B,W]],!
 .
 
+check_win(4):-
+	println('Der Geraet gewinnt!'),
+	abort.
+check_win(_).
  
 fight_loop(_,_,0):- 
 	println('[fight_loop] I lost :('),
@@ -78,7 +82,7 @@ fight_loop(Answer, AlreadyTried, AttemptsLeft) :-
 
 
 get_possible_answer(_,[]). %:-println('End of life').
-get_possible_answer(Guess, [[PreviousTry,Blacks,Whites]|ATR]):-
+get_possible_answer(FullGuess, [[PreviousTry,Blacks,Whites]|ATR]):-
 	%println(Guess), 
 	Guess\==PreviousTry,
 	%println(Guess),
@@ -87,7 +91,7 @@ get_possible_answer(Guess, [[PreviousTry,Blacks,Whites]|ATR]):-
 	%println(Guess), 
 	get_possible_answer(Guess,ATR),
 	%println(Guess),	
-	add_random_colors(Guess)
+	add_random_colors(Guess,FullGuess)
 . 
 
 add_random_colors([], []).
