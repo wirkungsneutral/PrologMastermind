@@ -1,5 +1,5 @@
 :- use_module(library(random)).
-%:- use_module(library(clpfd)).
+:- use_module(library(clpfd)).
 
 %http://www.cs.oswego.edu/~odendahl/coursework/notes/prolog/synopsis/con.html
 a([]) :- get_random_color(C),print_color(C).
@@ -46,11 +46,10 @@ init(Answer,FirstAttempt):-
 	write('[init] Length: '), 
 	length(Answer,L),
 	println(L),
-	gen_random(L,FirstAttempt1),
+	%gen_random(L,FirstAttempt1),
+	FirstAttempt1 = [1,2],
 	write('[init] Testing: '),
 	print_try(FirstAttempt1),
-	writeln(FirstAttempt1),
-	writeln(Answer),
 	check_h(FirstAttempt1, Answer, B, W),
 	write('[init] Black: '),write(B),write('  White: '),println(W),
 	%append([FirstAttempt1],[B,W],FirstAttempt) 
@@ -79,16 +78,23 @@ fight_loop(Answer, AlreadyTried, AttemptsLeft) :-
 	check_win(B),
 	write('[fight_loop] Black: '),write(B),write('  White: '),println(W),
 	append(AlreadyTried,[[Guess,B,W]], AlrdyTrd),
-	println(AlrdyTrd),
+%	println(AlrdyTrd),
 	fight_loop(Answer,AlrdyTrd,Attempts),
 	! 
 .
 
 
+one_to_six(A):-
+	A #>= 1,
+	A #=< 6,
+	label([A])
+.
+
+
 get_possible_answer(_,[]). %:-println('End of life').
 get_possible_answer(FullGuess, [[PreviousTry,Blacks,Whites]|ATR]):-
-	println(PreviousTry),
-	println(ATR),
+%	println(PreviousTry),
+%	println(ATR),
 	%println(Guess), 
 	Guess\==PreviousTry,
 	%println(Guess), 
@@ -97,7 +103,8 @@ get_possible_answer(FullGuess, [[PreviousTry,Blacks,Whites]|ATR]):-
 	%println(Guess), 
 	get_possible_answer(Guess,ATR),
 	%println(Guess),	
-	add_random_colors(Guess,FullGuess) 
+	add_random_colors(Guess,FullGuess) ,
+	Guess\==PreviousTry
 . 
 
 add_random_colors([], []).
@@ -108,8 +115,9 @@ add_random_colors([GH|GR], Guess):-
 .
 add_random_colors([GH|GR], Guess):-
 	not(ground(GH)),
-	write('not'),
-	get_random_color(C),
+%	write('not'),
+	C in 1..6,
+	label([C]),
 	add_random_colors(GR, Guess1),
 	append([C], Guess1, Guess)
 .
@@ -132,7 +140,6 @@ check([GH|GR],[AH|AT],A,H,W,B):-
 .
 check([GH|GR],[AH|AT],A,H,W,B):-
 	GH\==AH,
-	nonmember(GH,A),
 	check(GR,AT,A,H,W,B)
 .
 	
@@ -184,20 +191,29 @@ calc_black([GH|GR], [GH|AR], Blacks) :-
 calc_black([A|GR], [B|AR], Blacks) :-
 	A \== B, 
 	calc_black(GR, AR, Blacks).
-	
+
+color(red).
+color(orange).
+color(yellow).
+color(green).
+color(blue).
+color(violet).	
 % +Guess List, +Answer List, -Number of White Pins
-calc_white([], _, Whites) :- 
-	Whites is 0.
+calc_white([], _, 0).
 
 calc_white([GH|GR], A, Whites) :- 
+	color(GH),
 	member(GH, A), 
-	delete_first_occurence(A, GH, AwithoutGH),
-	calc_white(GR, AwithoutGH, X), 
-	Whites is 1 + X.
+	select(GH,A,AwithoutGH),!,
+	calc_white(GR, AwithoutGH, X),!, 
+	Whites is 1 + X
+.
 
 calc_white([GH|GR], A, Whites) :- 
-	nonmember(GH, A),
+	color(GH),
 	calc_white(GR, A, Whites).
+	
+	
 
 %List to delete Element from, Element, New List
 delete_first_occurence([], _, []).	
@@ -207,3 +223,103 @@ delete_first_occurence([LH|LR], Element, NewList) :-
 	delete_first_occurence(LR, Element, X),
 	append([LH], X, NewList).
 
+
+
+best_member(_,-1,_):-fail.
+best_member(E,_,[E|_]).
+best_member(E,C,[_|LT]):-
+	C1 is C-1,
+	best_member(E,C1,LT)
+. 
+
+
+tobi([],0).  
+tobi([_|LT],C):- tobi(LT,C1), C is C1+1,!. 
+
+white_and_black(L1,L2,L3):-
+	length(L1,L),
+	length(L2,L),
+	quick_sort(L1,SL1),
+	quick_sort(L2,Sl2),
+	wab(SL1,Sl2,L3)
+.
+wab([],_,0).
+wab(_,[],0).
+wab([H1|T1],[H1|T2],Cnt):- Cnt1 is Cnt -1, wab(T1,T2,Cnt1).
+wab([H1|T1],[H2|T2],Cnt):- H1 @> H2,wab(T1,[H2|T2],Cnt).
+wab([H1|T1],[H2|T2],Cnt):- H1 @< H2,wab([H1|T1],T2,Cnt).
+
+
+%SORT FROM: http://kti.mff.cuni.cz/~bartak/prolog/sorting.html
+quick_sort(List,Sorted):-q_sort(List,[],Sorted).
+q_sort([],Acc,Acc).
+q_sort([H|T],Acc,Sorted):-
+    pivoting(H,T,L1,L2),
+    q_sort(L1,Acc,Sorted1),q_sort(L2,[H|Sorted1],Sorted).
+    
+pivoting(_,[],[],[]).
+pivoting(H,[X|T],[X|L],G):-X@=<H,pivoting(H,T,L,G).
+pivoting(H,[X|T],L,[X|G]):-X@>H,pivoting(H,T,L,G).
+ 
+
+ 
+ 
+just_win(Answer,Tries):-
+	C = [red,blue,green,blue,violet,orange],
+	length(Answer,Length),
+	findall(X,perm_with_repetion(C,Length,X),Possible),
+	win_h(Answer,Tries,Length,Possible)
+.
+
+win_h(_,0,_,_):-println('LOST'),!.
+win_h(Answer,Tries,Length,Possible):-
+	pick(Guess,Possible), 
+		printf('Tries Left: '), 
+		printf(Tries), 
+		printf('  Trying: '), 
+		println(Guess),
+	check_h(Guess,Answer,Black,White),
+		printf('#Black: '), 
+		printf(Black), 
+		printf('  #White: '), 
+		println(White),
+	check_win(Guess,Black,Length),
+	remove_impossible(Guess,Black,White,Possible,NewPossible),
+		length(NewPossible,LenNP),
+		printf('#Possibilities left: '), 
+		println(LenNP),nl, 
+	T1 is Tries -1,
+	win_h(Answer,T1,Length,NewPossible)
+.
+
+remove_impossible(_,_,_,[],[]).
+remove_impossible(Guess,Black,White,[PH|PT],[PH|NPT]):- 
+	check_h(Guess,PH,Black,White), 
+	remove_impossible(Guess,Black,White,PT,NPT)
+.
+remove_impossible(Guess,Black,White,[_|PT],NPT):-
+	remove_impossible(Guess,Black,White,PT,NPT)
+.
+	
+check_win(Guess,Blacks,Length):- 
+	Blacks == Length , 
+	println('WIN!'),
+	println(Guess),abort.
+check_win(_,_,_).
+
+pick(Element,List):-
+	length(List,ListL),
+	random_between(1,ListL,Index),
+	nth1(Index,List,Element)
+.
+	
+perm_with_repetion(Items,Length,List):- 
+	length(List,Length),
+	perm_h(List,Items)
+.
+perm_h([],_).
+perm_h([Item|List1],ListOfItems):-
+	member(Item,ListOfItems),
+	perm_h(List1,ListOfItems)
+.
+	
