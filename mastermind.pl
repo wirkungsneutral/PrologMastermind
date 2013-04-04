@@ -282,7 +282,7 @@ win_h(Answer,Tries,Length,Possible):-
 		printf('#Black: '), 
 		printf(Black), 
 		printf('  #White: '), 
-		println(White),
+		println(White), 
 	check_win(Guess,Black,Length),
 	remove_impossible(Guess,Black,White,Possible,NewPossible),
 		length(NewPossible,LenNP),
@@ -312,7 +312,7 @@ pick(Element,List):-
 	random_between(1,ListL,Index),
 	nth1(Index,List,Element)
 .
-	
+
 perm_with_repetion(Items,Length,List):- 
 	length(List,Length),
 	perm_h(List,Items)
@@ -322,4 +322,37 @@ perm_h([Item|List1],ListOfItems):-
 	member(Item,ListOfItems),
 	perm_h(List1,ListOfItems)
 .
+
+
+fullSet(Length,Possible,BW_Combos):-
+	C = [red,blue,green,blue,violet,orange],
+	findall(X,perm_with_repetion(C,Length,X),Possible),
+	findall(X,white_and_black_validate(X,Length),BW_Combos)
+.
+master_pick(Guess,PossibleCombinations,Length):-
+	fullSet(Length,FullSet,BW_Combos),
+	score_full_set(FullSet,PossibleCombinations,BW_Combos,Score),
+	pick_best(Score,Guess)
+.
+
+score_full_set([],_,[]).
+score_full_set([P|T],PossibleCombinations,BW_Combos,[S|Score]):-
+	score_posibility(P,PossibleCombinations,BW_Combos,S),
+	score_full_set(T,PossibleCombinations,BW_Combos,Score)
+.
+
+score_possibility(P,PossibleCombinations,[[B,W]|CT],S):-
+	findall(member(X,PossibleCombinations),check_h(P,X,B,W),A),
+	length(A,S)
+.
+ 
+white_and_black_validate([B,W], Length):-
+	B #>= 0, W #>=0,
+	B +  W #=< Length,
+	label([B,W]).
+
+pick_best(Score,Guess):- pb_h(Score,[[],0],Guess).
+pb_h([],[Guess,_],Guess).
+pb_h([[Gue,Sco]|ST],[_,BestSco],Guess):- Sco >= BestSco, pb_h(ST,[Gue,Sco],Guess).
 	
+	 
