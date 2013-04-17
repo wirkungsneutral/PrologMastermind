@@ -5,7 +5,7 @@
 a([]) :- get_random_color(C),print_color(C).
 
 println(A):-write(A),nl.
-%print(A):-write(A).
+print(A):-write(A).
 %test([]) : give_white([1,3,3,1],[1, 2, 2 ,2],).
 
 get_random_color(C):- random_between(1,6,C).
@@ -123,7 +123,7 @@ add_random_colors([GH|GR], Guess):-
 .
 
 check_h(Guess,Answer,B,W):-
-	check(Guess,Answer,Answer,[],W,B)
+	check(Guess,Answer,Answer,[],W,B),!
 .
 check([],_,_,H,W,0):-length(H,W).
 check([E|GR],[E|AT],A,H,W,B):-
@@ -164,7 +164,7 @@ nonmember(E,[LH|LR]):- E\==LH, nonmember(E,LR).
 
 % Berechnet die weissen und schwarzen Pins
 % +Guess: 
-% +Answer:
+% +Answer: 
 % -Blacks:
 % -Whites:
 %calc_guess(Guess, Answer, Blacks, _) :-
@@ -322,7 +322,32 @@ perm_h([Item|List1],ListOfItems):-
 	member(Item,ListOfItems),
 	perm_h(List1,ListOfItems)
 .
+:-dynamic code_length/1.
 
+solve_code(Code):-
+	Start_code=[red,red,blue,blue],
+	check_h(start_code, Code, B, W),!,
+	length(CL,Code),
+	fullSet(CL, Possibilities, _),
+	(B =:= CL) -> (print('I win'),
+		true); 
+		(
+		findall(X,(member(X,Possibilities),check_h(Start_code,X,B,W)),NewPossLeft),
+		try(9,NewPossLeft,Code)),
+	!.
+	
+	
+try(Counter,PossibilitiesLeft,Code):-
+	Counter > 0,
+	master_pick(Guess,PossibilitiesLeft),
+	check_h(Guess, Code, B, W),
+	length(CL,Code),
+	(B =:= CL) -> (print('I win'),
+		true); 
+		(Counter1 = Counter -1,  
+		findall(X,(member(X,PossibilitiesLeft),check_h(Guess,X,B,W)),NewPossLeft),
+		try(Counter1,NewPossLeft,Code)),
+	!.
 
 fullSet(Length,Possible,BW_Combos):-
 	C = [red,blue,green,blue,violet,orange],
@@ -332,27 +357,33 @@ fullSet(Length,Possible,BW_Combos):-
 master_pick(Guess,PossibleCombinations,Length):-
 	fullSet(Length,FullSet,BW_Combos),
 	score_full_set(FullSet,PossibleCombinations,BW_Combos,Score),
-	pick_best(Score,Guess)
-.
+	pick_best(Score,Guess),
+!.
 
-score_full_set([],_,[]).
-score_full_set([P|T],PossibleCombinations,BW_Combos,[S|Score]):-
-	score_posibility(P,PossibleCombinations,BW_Combos,S),
+score_full_set([],_,_,[]).
+score_full_set([P|T],PossibleCombinations,BW_Combos,[[P,S1]|Score]):-
+	findall(S,(member(BW,BW_Combos),score_possibility(P,PossibleCombinations,BW,S)),L),
+	%Waehlt das "schlechteste" Ergebniss der Weis/schwarz versuche --> Length - S = Mindestanzahl der entfernten elemente
+	max_list(L,S1),
 	score_full_set(T,PossibleCombinations,BW_Combos,Score)
 .
 
-score_possibility(P,PossibleCombinations,[[B,W]|CT],S):-
-	findall(member(X,PossibleCombinations),check_h(P,X,B,W),A),
+
+score_possibility(P,PossibleCombinations,[B,W],S):-
+	findall(X,(member(X,PossibleCombinations),check_h(P,X,B,W)),A),
 	length(A,S)
-.
+. 
  
 white_and_black_validate([B,W], Length):-
 	B #>= 0, W #>=0,
-	B +  W #=< Length,
-	label([B,W]).
+	B +  W #=< Length,	
+	label([B,W]), 
+	%Rule to not produce combinations like [B=3,W=1,Length=4],[B=4,W=1,Length=5]  because they are impossible
+	not((B =:= Length-1, W =:=1)).
+	
 
 pick_best(Score,Guess):- pb_h(Score,[[],0],Guess).
-pb_h([],[Guess,_],Guess).
+pb_h([],[Guess,Score],Guess):- 	printf('I pick: '), write(Guess), printf(' it eliminates at least '),  write(Score), println(' possibilities').
 pb_h([[Gue,Sco]|ST],[_,BestSco],Guess):- Sco >= BestSco, pb_h(ST,[Gue,Sco],Guess).
-	
+pb_h([[_,Sco]|ST],[BestGue,BestSco],Guess):- Sco < BestSco, pb_h(ST,[BestGue,BestSco],Guess).
 	 
