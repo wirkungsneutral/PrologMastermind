@@ -191,4 +191,37 @@ pick_best(Score,Guess):- pb_h(Score,[[],0],Guess).
 pb_h([],[Guess,Score],Guess):- 	printf('I pick: '), write(Guess), printf(' it eliminates at least '),  write(Score), println(' possibilities').
 pb_h([[Gue,Sco]|ST],[_,BestSco],Guess):- Sco >= BestSco, pb_h(ST,[Gue,Sco],Guess).
 pb_h([[_,Sco]|ST],[BestGue,BestSco],Guess):- Sco < BestSco, pb_h(ST,[BestGue,BestSco],Guess).
-	 
+
+benchmark(Code_Length,Methode):-
+	fullSet(Code_Length,Codes,_),
+	ben_h(Codes,Methode,Sum_Codes,Min_Codes,Max_Codes,Counter),
+	length(Codes,Number_Of_Codes),
+	Fails is Number_Of_Codes - Counter,
+	nl,nl,
+	print('BENCHMARKRESULTS: ' ), println(Code_Length),
+	print('Methode: ' ), println(Methode),
+	print('Length: ' ), println(Code_Length),
+	print('Possibilities: ' ), println(Number_Of_Codes),
+	print('Succesfull: ' ), println(Counter),
+	print('Failed: ' ), println(Fails),
+	print('Min Attempts: ' ), println(Min_Codes),
+	print('Max Attempts: ' ), println(Max_Codes),
+	print('Total Attempts: ' ), println(Sum_Codes),!
+.
+
+ben_h([],_,0,9999,0,0).
+
+ben_h([Code|Codes],Methode,Sum,Min,Max,Counter):-
+	guess_code(Code,Methode,Attempts),
+	ben_h(Codes,Methode,Sum_Codes,Min_Codes,Max_Codes,Cnt),
+	min(Attempts,Min_Codes,Min),
+	max(Attempts,Max_Codes,Max),
+	Sum is Attempts + Sum_Codes,
+	Counter is Cnt +1
+.
+
+min(A,B,A):- A < B.	
+min(A,B,B):- A >= B.
+
+max(A,B,B):- A =< B.	
+max(A,B,A):- A > B.
