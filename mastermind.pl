@@ -23,58 +23,73 @@ color(blue).
 color(violet).
 list_of_colors([red,orange,yellow,green,blue,violet]).
 
+
+%Startcodes
+start_code(1,five_guess,[red]).
+start_code(2,five_guess,[red,blue]).
+start_code(3,five_guess,[red,blue,blue]).
+start_code(4,five_guess,[red,red,blue,blue]).
+start_code(5,five_guess,[red,red,blue,blue,blue]).
+
+
 %Methodiken
 method(random).
 method(five_guess).
 
 guess_code(Code):-
-	guess_code(Code,five_guess,_).
+	guess_code(Code,five_guess,_). 
 
 guess_code(Code,Methode,Used_Attempts):-
-	Start_Code = [red,red,blue,blue], 
-	print('Picked: '),println(Start_Code),  
-	calc_guess(Start_Code, Code, B, W),!,  
-	length(Code,CL),
-	fullSet(CL, All_Possibilities, _),
-	check_and_reduce(9,B,W,Start_Code,Code,CL,All_Possibilities,Methode,Used_Attempts)
+	length(Code,Code_Length),
+	start_code(Code_Length,Methode,Start_Code), 
+	print('Picked startcode: '),println(Start_Code),  
+	black_and_white(Start_Code, Code, B, W),!,  
+	fullSet(Code_Length, All_Possibilities, _),
+	check_and_reduce(9,B,W,Start_Code,Code,Code_Length,All_Possibilities,Methode,Used_Attempts)
 .
 
-pick_and_print(Counter,PossibilitiesLeft,Code,CL,Methode,Used_Attempts):-
+
+pick_and_print(Counter,PossibilitiesLeft,Code,Code_Length,Methode,Used_Attempts):-
 	Counter > 0,
-	pick(PossibilitiesLeft,CL,Methode,Guess),
+	pick(PossibilitiesLeft,Code_Length,Methode,Guess),
 	print('Picked: '),println(Guess), 
-	calc_guess(Guess, Code, B, W),
-	length(Code,CL), 
+	black_and_white(Guess, Code, B, W),
+	length(Code,Code_Length), 
 	Counter1 is Counter -1,  
-	check_and_reduce(Counter1,B,W,Guess,Code,CL,PossibilitiesLeft,Methode,Used_Attempts)
+	check_and_reduce(Counter1,B,W,Guess,Code,Code_Length,PossibilitiesLeft,Methode,Used_Attempts)
 .
+ 
  
 check_and_reduce(Counter,Laenge,_,_,_,Laenge,_,_,Used_Attempts):-
 	print('I win! Chances left: '),
 	Used_Attempts is 10 - Counter,
 	println(Counter),!. 
  
-check_and_reduce(Counter1,B,W,Guess,Code,CL,PossibilitiesLeft,Methode,Used_Attempts):-
-	%remove_impossible(Guess,B,W,PossibilitiesLeft,NewPossLeft),
-	findall(X,(member(X,PossibilitiesLeft),calc_guess(Guess,X,B,W)),NewPossLeft),
-	pick_and_print(Counter1,NewPossLeft,Code,CL,Methode,Used_Attempts), 
+check_and_reduce(Counter1,B,W,Guess,Code,Code_Length,PossibilitiesLeft,Methode,Used_Attempts):-
+	remove_impossible(Guess,B,W,PossibilitiesLeft,NewPossLeft),
+	%findall(X,(member(X,PossibilitiesLeft),black_and_white(Guess,X,B,W)),NewPossLeft),
+	pick_and_print(Counter1,NewPossLeft,Code,Code_Length,Methode,Used_Attempts), 
 !.
 
-pick(PossibilitiesLeft,CL,five_guess,Guess):-
-	master_pick(Guess,PossibilitiesLeft,CL).
+
+pick(PossibilitiesLeft,Code_Length,five_guess,Guess):-
+	master_pick(Guess,PossibilitiesLeft,Code_Length).
+	
 pick(PossibilitiesLeft,_,five_guess,Guess):-
 	pick_random(PossibilitiesLeft,Guess).
+	
+	
 % Berechnet die weissen und schwarzen Pins
 % +Guess: 
 % +Answer: 
 % -Blacks: 
 % -Whites:
-%calc_guess(Guess, Answer, Blacks, _) :-
+%black_and_white(Guess, Answer, Blacks, _) :-
 %	calc_black(Guess, Answer, Blacks),
 %	Blacks == 4,
 %	println('Gewonnen'), !.
 
-calc_guess(Guess, Answer, Blacks, Whites) :-
+black_and_white(Guess, Answer, Blacks, Whites) :-
 	calc_black(Guess, Answer, Blacks),
 	calc_white(Guess, Answer, Help),
 	Whites is Help - Blacks.
@@ -107,50 +122,15 @@ calc_white([GH|GR], A, Whites) :-
 	color(GH),
 	calc_white(GR, A, Whites).
 	
-	
-
-just_win(Answer,Tries):-
-	C = [red,blue,green,blue,violet,orange],
-	length(Answer,Length),
-	findall(X,perm_with_repetion(C,Length,X),Possible),
-	win_h(Answer,Tries,Length,Possible)
-.
-
-win_h(_,0,_,_):-println('LOST'),!.
-win_h(Answer,Tries,Length,Possible):-
-	pick(Guess,Possible), 
-		printf('Tries Left: '), 
-		printf(Tries), 
-		printf('  Trying: '), 
-		println(Guess),
-	check_h(Guess,Answer,Black,White),
-		printf('#Black: '), 
-		printf(Black), 
-		printf('  #White: '), 
-		println(White), 
-	check_win(Guess,Black,Length),
-	remove_impossible(Guess,Black,White,Possible,NewPossible),
-		length(NewPossible,LenNP),
-		printf('#Possibilities left: '), 
-		println(LenNP),nl, 
-	T1 is Tries -1,
-	win_h(Answer,T1,Length,NewPossible)
-.
 
 remove_impossible(_,_,_,[],[]).
 remove_impossible(Guess,Black,White,[PH|PT],[PH|NPT]):- 
-	check_h(Guess,PH,Black,White), 
+	black_and_white(Guess,PH,Black,White), 
 	remove_impossible(Guess,Black,White,PT,NPT)
 .
 remove_impossible(Guess,Black,White,[_|PT],NPT):-
 	remove_impossible(Guess,Black,White,PT,NPT)
 .
-	
-check_win(Guess,Blacks,Length):- 
-	Blacks == Length , 
-	println('WIN!'),
-	println(Guess),abort.
-check_win(_,_,_).
 
 pick_random(List,Element):-
 	length(List,ListL),
@@ -172,15 +152,15 @@ perm_h([Item|List1],ListOfItems):-
 
 
 fullSet(Length,Possible,BW_Combos):-
-	list_of_colors(C),
+	list_of_colors(C),	
 	findall(X,perm_with_repetion(C,Length,X),Possible),
-	findall(X,white_and_black_validate(X,Length),BW_Combos)
+	findall(X,whites_blacks_relation(X,Length),BW_Combos)
 .
 master_pick(Guess,[Guess|[]],_).
-master_pick(Guess,PossibleCombinations,CL):-
-	fullSet(CL,FullSet,BW_Combos),
+master_pick(Guess,PossibleCombinations,Code_Length):-
+	fullSet(Code_Length,Full_Set,BW_Combos),
 	length(PossibleCombinations,AM),
-	score_full_set(FullSet,PossibleCombinations,AM,BW_Combos,Score),
+	score_full_set(Full_Set,PossibleCombinations,AM,BW_Combos,Score),
 	pick_best(Score,Guess), 
 !.
 
@@ -194,12 +174,12 @@ score_full_set([P|T],PossibleCombinations,AM,BW_Combos,[[P,S1]|Score]):-
  
 
 score_possibility(P,PossibleCombinations,AM,[B,W],S):-
-	findall(X,(member(X,PossibleCombinations),calc_guess(P,X,B,W)),Liste_mit_noch_moeglichen),
+	findall(X,(member(X,PossibleCombinations),black_and_white(P,X,B,W)),Liste_mit_noch_moeglichen),
 	length(Liste_mit_noch_moeglichen,Laenge_Liste),
 	S is AM-Laenge_Liste    
 . 
  
-white_and_black_validate([B,W], Length):-
+whites_blacks_relation([B,W], Length):-
 	B #>= 0, W #>=0, 
 	B +  W #=< Length,	
 	label([B,W]), 
