@@ -25,12 +25,14 @@ list_of_colors([red,orange,yellow,green,blue,violet]).
 
 
 %Startcodes
-start_code(1,five_guess,[red]).
-start_code(2,five_guess,[red,blue]).
-start_code(3,five_guess,[red,blue,blue]).
-start_code(4,five_guess,[red,red,blue,blue]).
-start_code(5,five_guess,[red,red,blue,blue,blue]).
+start_code(1,_,[red]).
+start_code(2,_,[red,blue]).
+start_code(3,_,[red,blue,blue]).
+start_code(4,_,[red,red,blue,blue]).
+start_code(5,_,[red,red,blue,blue,blue]).
 
+
+start_code(1,random,[red]). 
 
 %Methodiken
 method(random).
@@ -75,13 +77,13 @@ check_and_reduce(Counter1,B,W,Guess,Code,Code_Length,PossibilitiesLeft,Methode,U
 pick(PossibilitiesLeft,Code_Length,five_guess,Guess):-
 	master_pick(Guess,PossibilitiesLeft,Code_Length).
 	
-pick(PossibilitiesLeft,_,five_guess,Guess):-
+pick(PossibilitiesLeft,_,random,Guess):-
 	pick_random(PossibilitiesLeft,Guess).
 	
 	
 % Berechnet die weissen und schwarzen Pins
 % +Guess: 
-% +Answer: 
+% +Answer:  
 % -Blacks: 
 % -Whites:
 %black_and_white(Guess, Answer, Blacks, _) :-
@@ -198,7 +200,7 @@ benchmark(Code_Length,Methode):-
 	length(Codes,Number_Of_Codes),
 	Fails is Number_Of_Codes - Counter,
 	nl,nl,
-	printnl('BENCHMARKRESULTS: ' ),
+	println('BENCHMARKRESULTS: ' ),
 	print('Methode: ' ), println(Methode),
 	print('Length: ' ), println(Code_Length),
 	print('Possibilities: ' ), println(Number_Of_Codes),
