@@ -198,7 +198,7 @@ benchmark(Code_Length,Methode):-
 	length(Codes,Number_Of_Codes),
 	Fails is Number_Of_Codes - Counter,
 	nl,nl,
-	print('BENCHMARKRESULTS: ' ), println(Code_Length),
+	printnl('BENCHMARKRESULTS: ' ),
 	print('Methode: ' ), println(Methode),
 	print('Length: ' ), println(Code_Length),
 	print('Possibilities: ' ), println(Number_Of_Codes),
