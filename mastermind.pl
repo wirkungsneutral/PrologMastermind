@@ -125,13 +125,13 @@ add_random_colors([GH|GR], Guess):-
 check_h(Guess,Answer,B,W):-
 	check(Guess,Answer,Answer,[],W,B),!
 .
-check([],_,_,H,W,0):-length(H,W).
+check([],_,_,H,W,0):-length(H,W),!.
 check([E|GR],[E|AT],A,H,W,B):-
 	delete_first_occurence(H, E, H1),
 	check(GR,AT,A,H1,W,B1),
 	B is B1 + 1
 .
-check([GH|GR],[AH|AT],A,H,W,B):-
+check([GH|GR],[AH|AT],A,H,W,B):- 
 	GH\==AH,
 	member(GH,A),
 	delete_first_occurence(A, GH, A1),
@@ -197,7 +197,8 @@ color(orange).
 color(yellow).
 color(green).
 color(blue).
-color(violet).	
+color(violet).
+list_of_colors([red,orange,yellow,green,blue,violet]).
 % +Guess List, +Answer List, -Number of White Pins
 calc_white([], _, 0).
 
@@ -313,6 +314,7 @@ pick(Element,List):-
 	nth1(Index,List,Element)
 .
 
+
 perm_with_repetion(Items,Length,List):- 
 	length(List,Length),
 	perm_h(List,Items)
@@ -322,60 +324,68 @@ perm_h([Item|List1],ListOfItems):-
 	member(Item,ListOfItems),
 	perm_h(List1,ListOfItems)
 .
-:-dynamic code_length/1.
+
 
 solve_code(Code):-
-	Start_code=[red,red,blue,blue],
-	check_h(start_code, Code, B, W),!,
-	length(CL,Code),
+	Start_code = [red,red,blue,blue], 
+	print('Picked: '),println(Start_code),  
+	calc_guess(Start_code, Code, B, W),!,  
+	length(Code,CL),
 	fullSet(CL, Possibilities, _),
-	(B =:= CL) -> (print('I win'),
-		true); 
-		(
-		findall(X,(member(X,Possibilities),check_h(Start_code,X,B,W)),NewPossLeft),
-		try(9,NewPossLeft,Code)),
-	!.
+	step_teil2(9,B,W,Start_code,Code,CL,Possibilities)
+.
 	
-	
-try(Counter,PossibilitiesLeft,Code):-
+step_teil1_best(Counter,PossibilitiesLeft,Code,CL):-
 	Counter > 0,
-	master_pick(Guess,PossibilitiesLeft),
-	check_h(Guess, Code, B, W),
-	length(CL,Code),
-	(B =:= CL) -> (print('I win'),
-		true); 
-		(Counter1 = Counter -1,  
-		findall(X,(member(X,PossibilitiesLeft),check_h(Guess,X,B,W)),NewPossLeft),
-		try(Counter1,NewPossLeft,Code)),
-	!.
+	master_pick(Guess,PossibilitiesLeft,CL),
+	print('Picked: '),println(Guess), 
+	calc_guess(Guess, Code, B, W),
+	length(Code,CL), 
+	Counter1 is Counter -1,  
+	step_teil2(Counter1,B,W,Guess,Code,CL,PossibilitiesLeft)
+.
+ 
+step_teil2(Counter,Laenge,_,_,_,Laenge,_):-
+	print('I win! Chances left: '),
+	println(Counter),!. 
+ 
+step_teil2(Counter1,B,W,Guess,Code,CL,PossibilitiesLeft):-
+	%remove_impossible(Guess,B,W,PossibilitiesLeft,NewPossLeft),
+	findall(X,(member(X,PossibilitiesLeft),calc_guess(Guess,X,B,W)),NewPossLeft),
+	step_teil1_best(Counter1,NewPossLeft,Code,CL), 
+!.
+
 
 fullSet(Length,Possible,BW_Combos):-
-	C = [red,blue,green,blue,violet,orange],
+	list_of_colors(C),
 	findall(X,perm_with_repetion(C,Length,X),Possible),
 	findall(X,white_and_black_validate(X,Length),BW_Combos)
 .
-master_pick(Guess,PossibleCombinations,Length):-
-	fullSet(Length,FullSet,BW_Combos),
-	score_full_set(FullSet,PossibleCombinations,BW_Combos,Score),
-	pick_best(Score,Guess),
+master_pick(Guess,[Guess|[]],_).
+master_pick(Guess,PossibleCombinations,CL):-
+	fullSet(CL,FullSet,BW_Combos),
+	length(PossibleCombinations,AM),
+	score_full_set(FullSet,PossibleCombinations,AM,BW_Combos,Score),
+	pick_best(Score,Guess), 
 !.
 
-score_full_set([],_,_,[]).
-score_full_set([P|T],PossibleCombinations,BW_Combos,[[P,S1]|Score]):-
-	findall(S,(member(BW,BW_Combos),score_possibility(P,PossibleCombinations,BW,S)),L),
+score_full_set([],_,_,_,[]).
+score_full_set([P|T],PossibleCombinations,AM,BW_Combos,[[P,S1]|Score]):-
+	findall(S,(member(BW,BW_Combos),score_possibility(P,PossibleCombinations,AM,BW,S)),L),
 	%Waehlt das "schlechteste" Ergebniss der Weis/schwarz versuche --> Length - S = Mindestanzahl der entfernten elemente
-	max_list(L,S1),
-	score_full_set(T,PossibleCombinations,BW_Combos,Score)
-.
+	min_list(L,S1),
+	score_full_set(T,PossibleCombinations,AM,BW_Combos,Score)
+. 
+ 
 
-
-score_possibility(P,PossibleCombinations,[B,W],S):-
-	findall(X,(member(X,PossibleCombinations),check_h(P,X,B,W)),A),
-	length(A,S)
+score_possibility(P,PossibleCombinations,AM,[B,W],S):-
+	findall(X,(member(X,PossibleCombinations),calc_guess(P,X,B,W)),Liste_mit_noch_moeglichen),
+	length(Liste_mit_noch_moeglichen,Laenge_Liste),
+	S is AM-Laenge_Liste    
 . 
  
 white_and_black_validate([B,W], Length):-
-	B #>= 0, W #>=0,
+	B #>= 0, W #>=0, 
 	B +  W #=< Length,	
 	label([B,W]), 
 	%Rule to not produce combinations like [B=3,W=1,Length=4],[B=4,W=1,Length=5]  because they are impossible
