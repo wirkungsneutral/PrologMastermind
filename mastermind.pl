@@ -189,7 +189,8 @@ remove_impossible_codes(
 % First selection mode. Randomly chooses a code from the Possible_Codes.
 pick_random(Possible_Codes, Chosen_Code) :-
 	length(Possible_Codes, Length),
-	random_between(1, Length, Index),
+	%random_between(1, Length, Index) does not work with linux swi prolog
+	random(1, Length + 1, Index),
 	% get the Index'th element from Possible_Codes
 	nth1(Index, Possible_Codes, Chosen_Code).
 
@@ -202,7 +203,7 @@ master_pick(Code_Guess, Possible_Codes, Code_Length) :-
 	create_all_code_permutations(
 	    Code_Length, All_Code_Permutations, Black_White_Permutations),
 	length(Possible_Codes, Possible_Codes_Size),
-	score_full_set(
+	score_all_codes(
 	    All_Code_Permutations, Possible_Codes, Possible_Codes_Size,
 	    Black_White_Permutations, Score),
 	pick_best(Score, Code_Guess), 
@@ -226,76 +227,122 @@ create_all_code_permutations(
 %
 % creates one permutation of all items including permutations with
 % the same item multiple times.
-%TODO hier weitermachen
 permutate_with_repetition(Items, Number_of_Items, Permutated_List) :- 
 	length(Permutated_List, Number_of_Items),
 	permutate_h(Permutated_List, Items).
 permutate_h([], _).
-permutate_h([Item|Permutated_List_R], ListOfItems):-
-	member(Item,ListOfItems),
-	permutate_h(Permutated_List_R,ListOfItems)
-.
+permutate_h([Item|Permutated_List_R], Item_List):-
+	member(Item, Item_List),
+	permutate_h(Permutated_List_R, Item_List).
 
-score_full_set([],_,_,_,[]).
-score_full_set([P|T],PossibleCombinations,Possible_Codes_Size,BW_Combos,[[P,S1]|Score]):-
-	findall(S,(member(BW,BW_Combos),score_possibility(P,PossibleCombinations,Possible_Codes_Size,BW,S)),L),
-	%Waehlt das "schlechteste" Ergebniss der Weis/schwarz versuche --> Length - S = Mindestanzahl der entfernten elemente
-	min_list(L,S1),
-	score_full_set(T,PossibleCombinations,Possible_Codes_Size,BW_Combos,Score)
-. 
- 
+%% score_all_codes(
+%      +All_Code_Permutations, +Possible_Codes, +Possible_Codes_Size,
+%      +Black_White_Permutations, -Scores)
+%
+% Calculates the score for every code. That is the minimum number of codes 
+% which get eliminated when picking a code and assuming every 
+% black/white combination once.
+% In other words: 
+% The score says how many possibilities get eliminated at least for each code.
+score_all_codes([], _, _, _, []).
+score_all_codes(
+    [All_Code_Permutations_H|All_Code_Permutations_R], Possible_Codes, 
+    Possible_Codes_Size, Black_White_Permutations, 
+    [[All_Code_Permutations_H, Score]|Scores]
+) :-
+	findall(
+	   Tmp_Score, (
+	       member(Black_White_Permutation, Black_White_Permutations),
+	       score_possibility(
+	           All_Code_Permutations_H, Possible_Codes, Possible_Codes_Size,
+	           Black_White_Permutation, Tmp_Score)), 
+	   Tmp_Scores),
+	% Chooses the minimal result from all black/white tries
+	% --> Length - Tmp_Score = number of codes to be removed at least
+	min_list(Tmp_Scores, Score),
+	score_all_codes(
+	    All_Code_Permutations_R, Possible_Codes, Possible_Codes_Size,
+	    Black_White_Permutations, Scores). 
 
-score_possibility(P,PossibleCombinations,Possible_Codes_Size,[B,W],S):-
-	findall(X,(member(X,PossibleCombinations),blacks_and_whites(P,X,B,W)),Liste_mit_noch_moeglichen),
-	length(Liste_mit_noch_moeglichen,Laenge_Liste),
-	S is Possible_Codes_Size-Laenge_Liste    
-. 
- 
-whites_blacks_relation([B,W], Length):-
-	B #>= 0, W #>=0, 
-	B +  W #=< Length,	
-	% does not work with linux swi prolog
-	%label([B,W]), 
-	labeling([], [B,W]),
-	%Rule to not produce combinations like [B=3,W=1,Length=4],[B=4,W=1,Length=5]  because they are impossible
-	not((B =:= Length-1, W =:=1)).
-	
+%% score_possibility(
+%      +Code, +Possible_Codes, +Possible_Codes_Size
+%      +Black_White_Permutation, -Score)
+%
+% Scores one Code with one Black_White_Permutation, i.e. the number of code
+% which would be eliminated, when actually choosing this code and getting this
+% Black_White_Permutation.
+score_possibility(
+    Code, Possible_Codes, Possible_Codes_Size, [Blacks, Whites], Score
+) :-
+	findall(
+	   Possible_Code, (
+	       member(Possible_Code, Possible_Codes),
+	       blacks_and_whites(Code, Possible_Code, Blacks, Whites)),
+	   Possible_Codes_Left),
+	length(Possible_Codes_Left, Length),
+	Score is Possible_Codes_Size - Length.
 
-pick_best(Score,Guess):- pb_h(Score,[[],0],Guess).
-pb_h([],[Guess,Score],Guess):- 	printf('I pick: '), write(Guess), printf(' it eliminates at least '),  write(Score), println(' possibilities').
-pb_h([[Gue,Sco]|ST],[_,BestSco],Guess):- Sco >= BestSco, pb_h(ST,[Gue,Sco],Guess).
-pb_h([[_,Sco]|ST],[BestGue,BestSco],Guess):- Sco < BestSco, pb_h(ST,[BestGue,BestSco],Guess).
+%% whites_blacks_relation(-Black_White_Permutation, +Code_Length)
+%
+% A predicate to create all possible black/white permutations.
+whites_blacks_relation([Blacks, Whites], Code_Length) :-
+	Blacks #>= 0, 
+	Whites #>= 0, 
+	Blacks + Whites #=< Code_Length,	
+	% label([Blacks,Whites]) does not work with linux swi prolog
+	labeling([], [Blacks, Whites]),
+	% Rule to not produce combinations like 
+	% [Blacks=3, Whites=1, Code_Length=4], [Blacks=4, Whites=1, Code_Length=5]
+	% because they are impossible.
+	not((Blacks =:= Code_Length - 1, Whites =:= 1)).
 
-benchmark(Code_Length,Pick_Method):-
-	create_all_code_permutations(Code_Length,Codes,_),
-	ben_h(Codes,Pick_Method,Sum_Codes,Min_Codes,Max_Codes,Counter),
-	length(Codes,Number_Of_Codes),
+%% pick_best(+Scores, -Code_Guess)
+%
+% Picks the code with the highest score.
+pick_best(Scores, Code_Guess) :- 
+    pb_h(Scores, [[],0], Code_Guess).
+pb_h([], [Code_Guess, Score], Code_Guess) :-
+    printf('I pick: '), write(Code_Guess), 
+    printf(' it eliminates at least '),  write(Score), 
+    println(' possibilities').
+pb_h([[Guess, Score]|Scores_R], [_, BestScore], Code_Guess) :- 
+    Score >= BestScore, 
+    pb_h(Scores_R, [Guess, Score], Code_Guess).
+pb_h([[_, Score]|Scores_R], [BestGuess, BestScore], Code_Guess) :- 
+    Score < BestScore, 
+    pb_h(Scores_R, [BestGuess, BestScore], Code_Guess).
+
+%% benchmark(+Code_Length, +Pick_Method)
+%
+% A benchmarks which tests every permutation of the given Code_Length with the
+% specified Pick_Method (random or five_guess).
+benchmark(Code_Length, Pick_Method) :-
+	create_all_code_permutations(Code_Length, Codes, _),
+	ben_h(Codes, Pick_Method, Sum_Codes, Min_Codes, Max_Codes, Counter),
+	length(Codes, Number_Of_Codes),
 	Fails is Number_Of_Codes - Counter,
 	nl,nl,
 	println('BENCHMARKRESULTS: ' ),
-	print('Pick_Method: ' ), println(Pick_Method),
-	print('Length: ' ), println(Code_Length),
+	print('Pick_Method: ' ),   println(Pick_Method),
+	print('Length: ' ),        println(Code_Length),
 	print('Possibilities: ' ), println(Number_Of_Codes),
-	print('Succesfull: ' ), println(Counter),
-	print('Failed: ' ), println(Fails),
-	print('Min Attempts: ' ), println(Min_Codes),
-	print('Max Attempts: ' ), println(Max_Codes),
-	print('Total Attempts: ' ), println(Sum_Codes),!
-.
-
-ben_h([],_,0,9999,0,0).
-
-ben_h([Code|Codes],Pick_Method,Sum,Min,Max,Counter):-
-	guess_code(Code,Pick_Method,Attempts),
-	ben_h(Codes,Pick_Method,Sum_Codes,Min_Codes,Max_Codes,Cnt),
-	min(Attempts,Min_Codes,Min),
-	max(Attempts,Max_Codes,Max),
+	print('Succesfull: ' ),    println(Counter),
+	print('Failed: ' ),        println(Fails),
+	print('Min Attempts: ' ),  println(Min_Codes),
+	print('Max Attempts: ' ),  println(Max_Codes),
+	print('Total Attempts: ' ),println(Sum_Codes),
+	!.
+ben_h([], _, 0, 9999, 0, 0).
+ben_h([Code|Codes], Pick_Method, Sum, Min, Max, Counter) :-
+	guess_code(Code, Pick_Method, Attempts),
+	ben_h(Codes, Pick_Method, Sum_Codes, Min_Codes, Max_Codes, Cnt),
+	min(Attempts, Min_Codes, Min),
+	max(Attempts, Max_Codes, Max),
 	Sum is Attempts + Sum_Codes,
-	Counter is Cnt +1
-.
+	Counter is Cnt + 1.
 
-min(A,B,A):- A < B.	
-min(A,B,B):- A >= B.
+min(A,B,A) :- A < B.	
+min(A,B,B) :- A >= B.
 
-max(A,B,B):- A =< B.	
-max(A,B,A):- A > B.
+max(A,B,B) :- A =< B.	
+max(A,B,A) :- A > B.
