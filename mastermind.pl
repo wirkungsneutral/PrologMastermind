@@ -25,16 +25,17 @@ color(yellow).
 color(green).
 color(blue).
 color(violet).
-list_of_colors([red,orange,yellow,green,blue,violet]).
+% also add a list of all colors to the knowledge base
+list_of_colors([red, orange, yellow, green, blue, violet]).
 
 % color codes for initial guess
-start_code(1,_,[red]).
-start_code(2,_,[red,blue]).
-start_code(3,_,[red,blue,blue]).
-start_code(4,_,[red,red,blue,blue]).
-start_code(5,_,[red,red,blue,blue,blue]).
+initial_code(1, _, [red]).
+initial_code(2, _, [red,blue]).
+initial_code(3, _, [red,blue,blue]).
+initial_code(4, _, [red,red,blue,blue]).
+initial_code(5, _, [red,red,blue,blue,blue]).
 
-start_code(1,random,[red]). 
+initial_code(1, random, [red]). 
 
 % there are two supported methods:
 %   random:     The selection of the next guess is random (very fast)
@@ -50,8 +51,8 @@ pick_method(five_guess).
 % It gets a colorcode as a list (e.g. [red, green, green, violet]) and prints
 % each step to its solution. It is not allowed to use more than 10 steps.
 % (But it will never need that many ;) )
-guess_code(Solution_Code):-
-	guess_code(Solution_Code,five_guess,_). 
+guess_code(Solution_Code) :-
+	guess_code(Solution_Code, five_guess, _). 
 
 %% guess_code(+Solution_Code, +Pick_Method, -Used_Attemps)
 %
@@ -59,45 +60,53 @@ guess_code(Solution_Code):-
 % start with a [a a b b] kind of list. After evaluating this initial guess, it
 % starts to reduce the set of all possible answers until it gets the one 
 % solution.
-guess_code(Solution_Code,Pick_Method,Used_Attempts):-
-	length(Solution_Code,Code_Length),
+guess_code(Solution_Code,Pick_Method,Used_Attempts) :-
+	length(Solution_Code, Code_Length),
 	pick_method(Pick_Method),
-	start_code(Code_Length,Pick_Method,Start_Code), 
-	print('Picked startcode: '),println(Start_Code),  
-	black_and_white(Start_Code, Solution_Code, B, W),!,  
-	fullSet(Code_Length, All_Possibilities, _),
-	check_and_reduce(9,B,W,Start_Code,Solution_Code,Code_Length,All_Possibilities,Pick_Method,Used_Attempts)
-.
-
-%TODO
-pick_and_print(Counter,Possible_Codes,Solution_Code,Code_Length,Pick_Method,Used_Attempts):-
-	Counter > 0,
-	pick(Possible_Codes,Code_Length,Pick_Method,Guess),
-	print('Picked: '),println(Guess), 
-	black_and_white(Guess, Solution_Code, B, W),
-	length(Solution_Code,Code_Length), 
-	Counter1 is Counter -1,  
-	check_and_reduce(Counter1,B,W,Guess,Solution_Code,Code_Length,Possible_Codes,Pick_Method,Used_Attempts)
-.
+	initial_code(Code_Length, Pick_Method, Initial_Code), 
+	print('Picked initial code: '),println(Initial_Code),  
+	blacks_and_whites(Initial_Code, Solution_Code, Blacks, Whites),!,  
+	create_all_code_permutations(Code_Length, All_Code_Permutations, _),
+	check_and_reduce(
+        9, Blacks, Whites, Initial_Code, Solution_Code, Code_Length,
+        All_Code_Permutations, Pick_Method, Used_Attempts).
  
 %% check_and_reduce(
-%      +Counter, +Blacks, +Whites, +Guess, +Solution_Code, +Code_Length
+%      +Counter, +Blacks, +Whites, +Guessed_Code, +Solution_Code, +Code_Length
 %      +Possible_Codes, +Selection_Method, +Used_Attemps)
 %
-%   The first predicate checks whether the number of blacks equals the length
-%   of the solution. In that case the game is won.
-%   The second predicate reduces the set of all possible permutations by those
-%   which became impossible by the given guess.
-check_and_reduce(Counter,Laenge,_,_,_,Laenge,_,_,Used_Attempts) :-
+% The first predicate checks whether the number of blacks equals the length
+% of the solution. In that case the game is won.
+% The second predicate reduces the set of all possible permutations by those
+% which became impossible by the given guessed code.
+check_and_reduce(
+    Counter, Code_Length, _, _, _, Code_Length, _, _, Used_Attempts
+) :-
 	print('I win! Chances left: '),
 	Used_Attempts is 10 - Counter,
-	println(Counter),!. 
- 
-check_and_reduce(Counter,B,W,Guess,Solution_Code,Code_Length,Possible_Codes,Pick_Method,Used_Attempts):-
-	remove_impossible(Guess,B,W,Possible_Codes,NewPossLeft),
-	%findall(X,(member(X,Possible_Codes),black_and_white(Guess,X,B,W)),NewPossLeft),
-	pick_and_print(Counter,NewPossLeft,Solution_Code,Code_Length,Pick_Method,Used_Attempts), 
-!.
+	println(Counter),
+	!. 
+check_and_reduce(
+    Counter, Blacks, Whites, Guessed_Code, Solution_Code, Code_Length,
+    Possible_Codes, Pick_Method, Used_Attempts
+) :-
+	remove_impossible(
+	    Guessed_Code, Blacks, Whites, Possible_Codes, Possible_Codes_Left),
+	pick_and_print(
+	    Counter, Possible_Codes_Left, Solution_Code, Code_Length, 
+	    Pick_Method, Used_Attempts), 
+    !.
+
+%% pick_and_print()
+pick_and_print(Counter,Possible_Codes,Solution_Code,Code_Length,Pick_Method,Used_Attempts):-
+    Counter > 0,
+    pick(Possible_Codes,Code_Length,Pick_Method,Guess),
+    print('Picked: '),println(Guess), 
+    blacks_and_whites(Guess, Solution_Code, B, W),
+    length(Solution_Code,Code_Length), 
+    Counter1 is Counter -1,  
+    check_and_reduce(Counter1,B,W,Guess,Solution_Code,Code_Length,Possible_Codes,Pick_Method,Used_Attempts)
+.
 
 
 pick(Possible_Codes,Code_Length,five_guess,Guess):-
@@ -112,12 +121,12 @@ pick(Possible_Codes,_,random,Guess):-
 % +Answer:  
 % -Blacks: 
 % -Whites:
-%black_and_white(Guess, Answer, Blacks, _) :-
+%blacks_and_whites(Guess, Answer, Blacks, _) :-
 %	calc_black(Guess, Answer, Blacks),
 %	Blacks == 4,
 %	println('Gewonnen'), !.
 
-black_and_white(Guess, Answer, Blacks, Whites) :-
+blacks_and_whites(Guess, Answer, Blacks, Whites) :-
 	calc_black(Guess, Answer, Blacks),
 	calc_white(Guess, Answer, Help),
 	Whites is Help - Blacks.
@@ -153,7 +162,7 @@ calc_white([GH|GR], A, Whites) :-
 
 remove_impossible(_,_,_,[],[]).
 remove_impossible(Guess,Black,White,[PH|PT],[PH|NPT]):- 
-	black_and_white(Guess,PH,Black,White), 
+	blacks_and_whites(Guess,PH,Black,White), 
 	remove_impossible(Guess,Black,White,PT,NPT)
 .
 remove_impossible(Guess,Black,White,[_|PT],NPT):-
@@ -179,14 +188,14 @@ perm_h([Item|List1],ListOfItems):-
 
 
 
-fullSet(Length,Possible,BW_Combos):-
+create_all_code_permutations(Length,Possible,BW_Combos):-
 	list_of_colors(C),	
 	findall(X,perm_with_repetion(C,Length,X),Possible),
 	findall(X,whites_blacks_relation(X,Length),BW_Combos)
 .
 master_pick(Guess,[Guess|[]],_).
 master_pick(Guess,PossibleCombinations,Code_Length):-
-	fullSet(Code_Length,Full_Set,BW_Combos),
+	create_all_code_permutations(Code_Length,Full_Set,BW_Combos),
 	length(PossibleCombinations,AM),
 	score_full_set(Full_Set,PossibleCombinations,AM,BW_Combos,Score),
 	pick_best(Score,Guess), 
@@ -202,7 +211,7 @@ score_full_set([P|T],PossibleCombinations,AM,BW_Combos,[[P,S1]|Score]):-
  
 
 score_possibility(P,PossibleCombinations,AM,[B,W],S):-
-	findall(X,(member(X,PossibleCombinations),black_and_white(P,X,B,W)),Liste_mit_noch_moeglichen),
+	findall(X,(member(X,PossibleCombinations),blacks_and_whites(P,X,B,W)),Liste_mit_noch_moeglichen),
 	length(Liste_mit_noch_moeglichen,Laenge_Liste),
 	S is AM-Laenge_Liste    
 . 
@@ -223,7 +232,7 @@ pb_h([[Gue,Sco]|ST],[_,BestSco],Guess):- Sco >= BestSco, pb_h(ST,[Gue,Sco],Guess
 pb_h([[_,Sco]|ST],[BestGue,BestSco],Guess):- Sco < BestSco, pb_h(ST,[BestGue,BestSco],Guess).
 
 benchmark(Code_Length,Pick_Method):-
-	fullSet(Code_Length,Codes,_),
+	create_all_code_permutations(Code_Length,Codes,_),
 	ben_h(Codes,Pick_Method,Sum_Codes,Min_Codes,Max_Codes,Counter),
 	length(Codes,Number_Of_Codes),
 	Fails is Number_Of_Codes - Counter,
