@@ -97,40 +97,47 @@ check_and_reduce(
 	    Pick_Method, Used_Attempts), 
     !.
 
-%% pick_and_print()
-pick_and_print(Counter,Possible_Codes,Solution_Code,Code_Length,Pick_Method,Used_Attempts):-
+%% pick_and_print(
+%      +Counter, +Possible_Codes, +Solution_Code, +Code_Length, 
+%      +Pick_Method, +Used_Attempts)
+%
+% Picks a new Code_Guess according to the specified Pick_Method, evaluates the
+% number of blacks and whites and reduced all possible codes by those which
+% get impossible through the new guess.
+pick_and_print(
+    Counter, Possible_Codes, Solution_Code, Code_Length, 
+    Pick_Method, Used_Attempts
+) :-
     Counter > 0,
-    pick(Possible_Codes,Code_Length,Pick_Method,Guess),
-    print('Picked: '),println(Guess), 
-    blacks_and_whites(Guess, Solution_Code, B, W),
-    length(Solution_Code,Code_Length), 
-    Counter1 is Counter -1,  
-    check_and_reduce(Counter1,B,W,Guess,Solution_Code,Code_Length,Possible_Codes,Pick_Method,Used_Attempts)
-.
+    pick(Possible_Codes, Code_Length, Pick_Method, Code_Guess),
+    print('Picked: '), println(Code_Guess), 
+    blacks_and_whites(Code_Guess, Solution_Code, Blacks, Whites),
+    length(Solution_Code, Code_Length), 
+    Counter1 is Counter - 1,  
+    check_and_reduce(
+        Counter1, Blacks, Whites, Code_Guess, Solution_Code, Code_Length,
+        Possible_Codes, Pick_Method, Used_Attempts).
 
-
-pick(Possible_Codes,Code_Length,five_guess,Guess):-
-	master_pick(Guess,Possible_Codes,Code_Length).
+%% pick(+Possible_Codes, +Code_Length, +Pick_Method, -Code_Guess)
+%
+% Picks a new Code_Guess according to the specified Pick_Method.
+pick(Possible_Codes, Code_Length, five_guess, Code_Guess) :-
+	master_pick(Code_Guess, Possible_Codes, Code_Length).
+pick(Possible_Codes, _, random, Code_Guess) :-
+	pick_random(Possible_Codes, Code_Guess).
 	
-pick(Possible_Codes,_,random,Guess):-
-	pick_random(Possible_Codes,Guess).
-	
-	
-% Berechnet die weissen und schwarzen Pins
-% +Guess: 
-% +Answer:  
-% -Blacks: 
-% -Whites:
-%blacks_and_whites(Guess, Answer, Blacks, _) :-
-%	calc_black(Guess, Answer, Blacks),
-%	Blacks == 4,
-%	println('Gewonnen'), !.
-
-blacks_and_whites(Guess, Answer, Blacks, Whites) :-
-	calc_black(Guess, Answer, Blacks),
-	calc_white(Guess, Answer, Help),
+%% blacks_and_whites(+Code_Guess, +Code_Answer, ?Blacks, ?Whites)
+%
+% Evaluates the Code_Guess against the Code_Answer (which need not be the same
+% as the Code_Solution, e.g. when removing impossible codes from the 
+% Possible_Codes) and either gives the number of Blacks and Whites or
+% returns true, if they are specified and correct.
+blacks_and_whites(Code_Guess, Code_Answer, Blacks, Whites) :-
+	calc_black(Code_Guess, Code_Answer, Blacks),
+	calc_white(Code_Guess, Code_Answer, Help),
 	Whites is Help - Blacks.
 
+%TODO ab hier weitermachen
 % Guess List, Answer List, Number of Black Pins
 calc_black([], [], Blacks) :- 
 	Blacks is 0.
