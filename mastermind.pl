@@ -90,7 +90,7 @@ check_and_reduce(
     Counter, Blacks, Whites, Guessed_Code, Solution_Code, Code_Length,
     Possible_Codes, Pick_Method, Used_Attempts
 ) :-
-	remove_impossible(
+	remove_impossible_codes(
 	    Guessed_Code, Blacks, Whites, Possible_Codes, Possible_Codes_Left),
 	pick_and_print(
 	    Counter, Possible_Codes_Left, Solution_Code, Code_Length, 
@@ -137,90 +137,118 @@ blacks_and_whites(Code_Guess, Code_Answer, Blacks, Whites) :-
 	calc_white(Code_Guess, Code_Answer, Help),
 	Whites is Help - Blacks.
 
-%TODO ab hier weitermachen
-% Guess List, Answer List, Number of Black Pins
+%% calc_black(+Code_Guess, +Code_Answer, ?Blacks)
+%
+% Calculates the number of black pins, i.e. the number of colors which are
+% at the correct position
 calc_black([], [], Blacks) :- 
 	Blacks is 0.
-
-calc_black([GH|GR], [GH|AR], Blacks) :-
-	calc_black(GR, AR, X), 
-	Blacks is 1 + X.
-		
-calc_black([A|GR], [B|AR], Blacks) :-
+calc_black([Code_Guess_H|Code_Guess_R], [Code_Guess_H|Code_Answer_R], Blacks) :-
+	calc_black(Code_Guess_R, Code_Answer_R, Help), 
+	Blacks is 1 + Help.
+calc_black([A|Code_Guess_R], [B|Code_Answer_R], Blacks) :-
 	A \== B, 
-	calc_black(GR, AR, Blacks).
+	calc_black(Code_Guess_R, Code_Answer_R, Blacks).
 
-
-% +Guess List, +Answer List, -Number of White Pins
+%% calc_white(+Code_Guess, +Code_Answer, ?Whites_And_Blacks)
+%
+% Calculates the number of white pins (i.e. the number of colors which are in
+% the answer, but not at the correct position) + the number of black pins
 calc_white([], _, 0).
+calc_white([Code_Guess_H|Code_Guess_R], Code_Answer, Whites_And_Blacks) :- 
+	color(Code_Guess_H),
+	member(Code_Guess_H, Code_Answer), 
+	select(Code_Guess_H, Code_Answer, Answer_Without_Guess_H),
+	!,
+	calc_white(Code_Guess_R, Answer_Without_Guess_H, Help),!, 
+	Whites_And_Blacks is 1 + Help.
+calc_white([Code_Guess_H|Code_Guess_R], Code_Answer, Whites_And_Blacks) :- 
+	color(Code_Guess_H),
+	calc_white(Code_Guess_R, Code_Answer, Whites_And_Blacks).
 
-calc_white([GH|GR], A, Whites) :- 
-	color(GH),
-	member(GH, A), 
-	select(GH,A,AwithoutGH),!,
-	calc_white(GR, AwithoutGH, X),!, 
-	Whites is 1 + X
-.
+%% remove_impossible_codes(
+%      +Code_Guess, +Blacks, +Whites, +Possible_Codes, -Possible_Codes_Left)
+%
+% Removes all codes which become impossible through the Code_Guess with the 
+% given number of Blacks and Whites
+remove_impossible_codes(_,_,_,[],[]).
+remove_impossible_codes(
+    Code_Guess, Blacks, Whites, [Possible_Codes_H|Possible_Codes_R], 
+    [Possible_Codes_H|Poss_Codes_Left_R]
+) :- 
+	blacks_and_whites(Code_Guess, Possible_Codes_H, Blacks, Whites), 
+	remove_impossible_codes(
+	    Code_Guess, Blacks, Whites, Possible_Codes_R, Poss_Codes_Left_R).
+remove_impossible_codes(
+    Code_Guess, Blacks, Whites, [_|Possible_Codes_R], Poss_Codes_Left):-
+	remove_impossible_codes(
+	   Code_Guess, Blacks, Whites, Possible_Codes_R, Poss_Codes_Left).
 
-calc_white([GH|GR], A, Whites) :- 
-	color(GH),
-	calc_white(GR, A, Whites).
-	
+%% pick_random(+Possible_Codes, -Chosen_Code)
+%
+% First selection mode. Randomly chooses a code from the Possible_Codes.
+pick_random(Possible_Codes, Chosen_Code) :-
+	length(Possible_Codes, Length),
+	random_between(1, Length, Index),
+	% get the Index'th element from Possible_Codes
+	nth1(Index, Possible_Codes, Chosen_Code).
 
-remove_impossible(_,_,_,[],[]).
-remove_impossible(Guess,Black,White,[PH|PT],[PH|NPT]):- 
-	blacks_and_whites(Guess,PH,Black,White), 
-	remove_impossible(Guess,Black,White,PT,NPT)
-.
-remove_impossible(Guess,Black,White,[_|PT],NPT):-
-	remove_impossible(Guess,Black,White,PT,NPT)
-.
+%% master_pick(-Code_Guess, +Possible_Codes, +Code_Length)
+%
+% Second selection mode. Picks a code from Possible_Codes with the five-guess 
+% algorithm which works with the minimax strategy.
+master_pick(Code_Guess, [Code_Guess|[]], _).
+master_pick(Code_Guess, Possible_Codes, Code_Length) :-
+	create_all_code_permutations(
+	    Code_Length, All_Code_Permutations, Black_White_Permutations),
+	length(Possible_Codes, Possible_Codes_Size),
+	score_full_set(
+	    All_Code_Permutations, Possible_Codes, Possible_Codes_Size,
+	    Black_White_Permutations, Score),
+	pick_best(Score, Code_Guess), 
+    !.
 
-pick_random(List,Element):-
-	length(List,ListL),
-	random_between(1,ListL,Index),
-	nth1(Index,List,Element)
-.
+%% create_all_code_permutations(
+%      +Code_Length, -All_Code_Permutations, -Black_White_Permutations)
+%
+% Creates a list of all possible permutations of colors as well as a list of
+% all possible black and white permutations with the given length.
+create_all_code_permutations(
+    Code_Length, All_Code_Permutations, Black_White_Permutations
+) :-
+	list_of_colors(Color_List),	
+	findall(
+	   X, permutate_with_repetition(Color_List, Code_Length, X), 
+	   All_Code_Permutations),
+	findall(X, whites_blacks_relation(X, Code_Length), Black_White_Permutations).
 
-
-perm_with_repetion(Items,Length,List):- 
-	length(List,Length),
-	perm_h(List,Items)
-.
-perm_h([],_).
-perm_h([Item|List1],ListOfItems):-
+%% permutate_with_repetition(+Items, +Number_of_Items, -Permutated_List)
+%
+% creates one permutation of all items including permutations with
+% the same item multiple times.
+%TODO hier weitermachen
+permutate_with_repetition(Items, Number_of_Items, Permutated_List) :- 
+	length(Permutated_List, Number_of_Items),
+	permutate_h(Permutated_List, Items).
+permutate_h([], _).
+permutate_h([Item|Permutated_List_R], ListOfItems):-
 	member(Item,ListOfItems),
-	perm_h(List1,ListOfItems)
+	permutate_h(Permutated_List_R,ListOfItems)
 .
-
-
-
-create_all_code_permutations(Length,Possible,BW_Combos):-
-	list_of_colors(C),	
-	findall(X,perm_with_repetion(C,Length,X),Possible),
-	findall(X,whites_blacks_relation(X,Length),BW_Combos)
-.
-master_pick(Guess,[Guess|[]],_).
-master_pick(Guess,PossibleCombinations,Code_Length):-
-	create_all_code_permutations(Code_Length,Full_Set,BW_Combos),
-	length(PossibleCombinations,AM),
-	score_full_set(Full_Set,PossibleCombinations,AM,BW_Combos,Score),
-	pick_best(Score,Guess), 
-!.
 
 score_full_set([],_,_,_,[]).
-score_full_set([P|T],PossibleCombinations,AM,BW_Combos,[[P,S1]|Score]):-
-	findall(S,(member(BW,BW_Combos),score_possibility(P,PossibleCombinations,AM,BW,S)),L),
+score_full_set([P|T],PossibleCombinations,Possible_Codes_Size,BW_Combos,[[P,S1]|Score]):-
+	findall(S,(member(BW,BW_Combos),score_possibility(P,PossibleCombinations,Possible_Codes_Size,BW,S)),L),
 	%Waehlt das "schlechteste" Ergebniss der Weis/schwarz versuche --> Length - S = Mindestanzahl der entfernten elemente
 	min_list(L,S1),
-	score_full_set(T,PossibleCombinations,AM,BW_Combos,Score)
+	score_full_set(T,PossibleCombinations,Possible_Codes_Size,BW_Combos,Score)
 . 
  
 
-score_possibility(P,PossibleCombinations,AM,[B,W],S):-
+score_possibility(P,PossibleCombinations,Possible_Codes_Size,[B,W],S):-
 	findall(X,(member(X,PossibleCombinations),blacks_and_whites(P,X,B,W)),Liste_mit_noch_moeglichen),
 	length(Liste_mit_noch_moeglichen,Laenge_Liste),
-	S is AM-Laenge_Liste    
+	S is Possible_Codes_Size-Laenge_Liste    
 . 
  
 whites_blacks_relation([B,W], Length):-
