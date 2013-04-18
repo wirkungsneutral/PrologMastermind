@@ -1,20 +1,24 @@
+/*
+Mastermind - a prolog implementation of the 5-choice-algorithm as well as an 
+implementation with random choice.
+
+Filename: mastermind.pl
+Version: 1.0.0
+Authors: Tobias Schöneberger, Matthis Hauschild
+*/
 :- use_module(library(random)).
 :- use_module(library(clpfd)).
 
+% TODO kann das geloescht werden?
 %http://www.cs.oswego.edu/~odendahl/coursework/notes/prolog/synopsis/con.html
-a([]) :- get_random_color(C),print_color(C).
-
-println(A):-write(A),nl.
-print(A):-write(A).
+%a([]) :- get_random_color(C),print_color(C).
+%get_random_color(C):- random_between(1,6,C).
 %test([]) : give_white([1,3,3,1],[1, 2, 2 ,2],).
 
-get_random_color(C):- random_between(1,6,C).
+println(A):-write(A),nl.
+%print(A):-write(A).
 
-%Fuer Windows
-%give_random_color(C):- random_between(1,6,C).
-%Fuer Linux, obwohl deprecated, aber random_between findet er nicht, wohl zu neu
-
-%Farbdefinitionen
+% add supported colors to the knowledge base
 color(red).
 color(orange).
 color(yellow).
@@ -23,62 +27,84 @@ color(blue).
 color(violet).
 list_of_colors([red,orange,yellow,green,blue,violet]).
 
-
-%Startcodes
+% color codes for initial guess
 start_code(1,_,[red]).
 start_code(2,_,[red,blue]).
 start_code(3,_,[red,blue,blue]).
 start_code(4,_,[red,red,blue,blue]).
 start_code(5,_,[red,red,blue,blue,blue]).
 
-
 start_code(1,random,[red]). 
 
-%Methodiken
-method(random).
-method(five_guess).
+% there are two supported methods:
+%   random:     The selection of the next guess is random (very fast)
+%   five_guess: The selection of the next guess is based on the five-guess
+%               algorithm which is a minimax approach (can take a lot of time)
+pick_method(random).
+pick_method(five_guess).
 
-guess_code(Code):-
-	guess_code(Code,five_guess,_). 
+%% guess_code(+Solution_Code)
+%
+% Main entry point for the program. Is a helperfunction, which calls the
+% actual guess_code.
+% It gets a colorcode as a list (e.g. [red, green, green, violet]) and prints
+% each step to its solution. It is not allowed to use more than 10 steps.
+% (But it will never need that many ;) )
+guess_code(Solution_Code):-
+	guess_code(Solution_Code,five_guess,_). 
 
-guess_code(Code,Methode,Used_Attempts):-
-	length(Code,Code_Length),
-	start_code(Code_Length,Methode,Start_Code), 
+%% guess_code(+Solution_Code, +Pick_Method, -Used_Attemps)
+%
+% It starts with a fixed first guess, since the five_guess algorithm predicts to
+% start with a [a a b b] kind of list. After evaluating this initial guess, it
+% starts to reduce the set of all possible answers until it gets the one 
+% solution.
+guess_code(Solution_Code,Pick_Method,Used_Attempts):-
+	length(Solution_Code,Code_Length),
+	pick_method(Pick_Method),
+	start_code(Code_Length,Pick_Method,Start_Code), 
 	print('Picked startcode: '),println(Start_Code),  
-	black_and_white(Start_Code, Code, B, W),!,  
+	black_and_white(Start_Code, Solution_Code, B, W),!,  
 	fullSet(Code_Length, All_Possibilities, _),
-	check_and_reduce(9,B,W,Start_Code,Code,Code_Length,All_Possibilities,Methode,Used_Attempts)
+	check_and_reduce(9,B,W,Start_Code,Solution_Code,Code_Length,All_Possibilities,Pick_Method,Used_Attempts)
 .
 
-
-pick_and_print(Counter,PossibilitiesLeft,Code,Code_Length,Methode,Used_Attempts):-
+%TODO
+pick_and_print(Counter,Possible_Codes,Solution_Code,Code_Length,Pick_Method,Used_Attempts):-
 	Counter > 0,
-	pick(PossibilitiesLeft,Code_Length,Methode,Guess),
+	pick(Possible_Codes,Code_Length,Pick_Method,Guess),
 	print('Picked: '),println(Guess), 
-	black_and_white(Guess, Code, B, W),
-	length(Code,Code_Length), 
+	black_and_white(Guess, Solution_Code, B, W),
+	length(Solution_Code,Code_Length), 
 	Counter1 is Counter -1,  
-	check_and_reduce(Counter1,B,W,Guess,Code,Code_Length,PossibilitiesLeft,Methode,Used_Attempts)
+	check_and_reduce(Counter1,B,W,Guess,Solution_Code,Code_Length,Possible_Codes,Pick_Method,Used_Attempts)
 .
  
- 
-check_and_reduce(Counter,Laenge,_,_,_,Laenge,_,_,Used_Attempts):-
+%% check_and_reduce(
+%      +Counter, +Blacks, +Whites, +Guess, +Solution_Code, +Code_Length
+%      +Possible_Codes, +Selection_Method, +Used_Attemps)
+%
+%   The first predicate checks whether the number of blacks equals the length
+%   of the solution. In that case the game is won.
+%   The second predicate reduces the set of all possible permutations by those
+%   which became impossible by the given guess.
+check_and_reduce(Counter,Laenge,_,_,_,Laenge,_,_,Used_Attempts) :-
 	print('I win! Chances left: '),
 	Used_Attempts is 10 - Counter,
 	println(Counter),!. 
  
-check_and_reduce(Counter1,B,W,Guess,Code,Code_Length,PossibilitiesLeft,Methode,Used_Attempts):-
-	remove_impossible(Guess,B,W,PossibilitiesLeft,NewPossLeft),
-	%findall(X,(member(X,PossibilitiesLeft),black_and_white(Guess,X,B,W)),NewPossLeft),
-	pick_and_print(Counter1,NewPossLeft,Code,Code_Length,Methode,Used_Attempts), 
+check_and_reduce(Counter,B,W,Guess,Solution_Code,Code_Length,Possible_Codes,Pick_Method,Used_Attempts):-
+	remove_impossible(Guess,B,W,Possible_Codes,NewPossLeft),
+	%findall(X,(member(X,Possible_Codes),black_and_white(Guess,X,B,W)),NewPossLeft),
+	pick_and_print(Counter,NewPossLeft,Solution_Code,Code_Length,Pick_Method,Used_Attempts), 
 !.
 
 
-pick(PossibilitiesLeft,Code_Length,five_guess,Guess):-
-	master_pick(Guess,PossibilitiesLeft,Code_Length).
+pick(Possible_Codes,Code_Length,five_guess,Guess):-
+	master_pick(Guess,Possible_Codes,Code_Length).
 	
-pick(PossibilitiesLeft,_,random,Guess):-
-	pick_random(PossibilitiesLeft,Guess).
+pick(Possible_Codes,_,random,Guess):-
+	pick_random(Possible_Codes,Guess).
 	
 	
 % Berechnet die weissen und schwarzen Pins
@@ -184,7 +210,9 @@ score_possibility(P,PossibleCombinations,AM,[B,W],S):-
 whites_blacks_relation([B,W], Length):-
 	B #>= 0, W #>=0, 
 	B +  W #=< Length,	
-	label([B,W]), 
+	% does not work with linux swi prolog
+	%label([B,W]), 
+	labeling([], [B,W]),
 	%Rule to not produce combinations like [B=3,W=1,Length=4],[B=4,W=1,Length=5]  because they are impossible
 	not((B =:= Length-1, W =:=1)).
 	
@@ -194,14 +222,14 @@ pb_h([],[Guess,Score],Guess):- 	printf('I pick: '), write(Guess), printf(' it el
 pb_h([[Gue,Sco]|ST],[_,BestSco],Guess):- Sco >= BestSco, pb_h(ST,[Gue,Sco],Guess).
 pb_h([[_,Sco]|ST],[BestGue,BestSco],Guess):- Sco < BestSco, pb_h(ST,[BestGue,BestSco],Guess).
 
-benchmark(Code_Length,Methode):-
+benchmark(Code_Length,Pick_Method):-
 	fullSet(Code_Length,Codes,_),
-	ben_h(Codes,Methode,Sum_Codes,Min_Codes,Max_Codes,Counter),
+	ben_h(Codes,Pick_Method,Sum_Codes,Min_Codes,Max_Codes,Counter),
 	length(Codes,Number_Of_Codes),
 	Fails is Number_Of_Codes - Counter,
 	nl,nl,
 	println('BENCHMARKRESULTS: ' ),
-	print('Methode: ' ), println(Methode),
+	print('Pick_Method: ' ), println(Pick_Method),
 	print('Length: ' ), println(Code_Length),
 	print('Possibilities: ' ), println(Number_Of_Codes),
 	print('Succesfull: ' ), println(Counter),
@@ -213,9 +241,9 @@ benchmark(Code_Length,Methode):-
 
 ben_h([],_,0,9999,0,0).
 
-ben_h([Code|Codes],Methode,Sum,Min,Max,Counter):-
-	guess_code(Code,Methode,Attempts),
-	ben_h(Codes,Methode,Sum_Codes,Min_Codes,Max_Codes,Cnt),
+ben_h([Code|Codes],Pick_Method,Sum,Min,Max,Counter):-
+	guess_code(Code,Pick_Method,Attempts),
+	ben_h(Codes,Pick_Method,Sum_Codes,Min_Codes,Max_Codes,Cnt),
 	min(Attempts,Min_Codes,Min),
 	max(Attempts,Max_Codes,Max),
 	Sum is Attempts + Sum_Codes,
