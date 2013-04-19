@@ -34,6 +34,8 @@ initial_code(2, _, [red,blue]).
 initial_code(3, _, [red,blue,blue]).
 initial_code(4, _, [red,red,blue,blue]).
 initial_code(5, _, [red,red,blue,blue,blue]).
+initial_code(6, _, [red,red,red,blue,blue,blue]).
+initial_code(7, _, [red,red,red,blue,blue,blue,blue]).
 
 initial_code(1, random, [red]). 
 
@@ -61,14 +63,19 @@ guess_code(Solution_Code) :-
 % starts to reduce the set of all possible answers until it gets the one 
 % solution.
 guess_code(Solution_Code,Pick_Method,Used_Attempts) :-
+	valid_input(Solution_Code),
 	length(Solution_Code, Code_Length),
 	pick_method(Pick_Method),
 	initial_code(Code_Length, Pick_Method, Initial_Code), 
-	print('Picked initial code: '),println(Initial_Code),  
+	print('[init] Searching for code '),print(Solution_Code),
+	print(' with length '), println(Code_Length),
 	blacks_and_whites(Initial_Code, Solution_Code, Blacks, Whites),!,  
 	create_all_code_permutations(Code_Length, All_Code_Permutations, _),
+	length(All_Code_Permutations,Length_All_Code_Permutations),
+	print('[1] Number of possible Codes left: ' ), println(Length_All_Code_Permutations),	
+    print('[1] Inital Guess: '), println(Initial_Code),
 	check_and_reduce(
-        9, Blacks, Whites, Initial_Code, Solution_Code, Code_Length,
+        1, Blacks, Whites, Initial_Code, Solution_Code, Code_Length,
         All_Code_Permutations, Pick_Method, Used_Attempts).
  
 %% check_and_reduce(
@@ -81,17 +88,20 @@ guess_code(Solution_Code,Pick_Method,Used_Attempts) :-
 % which became impossible by the given guessed code.
 check_and_reduce(
     Counter, Code_Length, _, _, _, Code_Length, _, _, Used_Attempts
-) :-
-	print('I win! Chances left: '),
-	Used_Attempts is 10 - Counter,
+) :-	
+	print('You can\'t beat the maschine. Computer won! Needed Attempts: '),
+	Used_Attempts is Counter,
 	println(Counter),
 	!. 
 check_and_reduce(
     Counter, Blacks, Whites, Guessed_Code, Solution_Code, Code_Length,
     Possible_Codes, Pick_Method, Used_Attempts
-) :-
+) :-	
 	remove_impossible_codes(
 	    Guessed_Code, Blacks, Whites, Possible_Codes, Possible_Codes_Left),
+	length(Possible_Codes_Left,Length_Possible_Codes_Left),
+	NextAttempt is Counter+1,
+	print('['),print(Counter),print('] Number of possible Codes left: ' ), println(Length_Possible_Codes_Left),print('['),print(NextAttempt),print('] '),
 	pick_and_print(
 	    Counter, Possible_Codes_Left, Solution_Code, Code_Length, 
 	    Pick_Method, Used_Attempts), 
@@ -108,12 +118,11 @@ pick_and_print(
     Counter, Possible_Codes, Solution_Code, Code_Length, 
     Pick_Method, Used_Attempts
 ) :-
-    Counter > 0,
+    Counter < 10,
     pick(Possible_Codes, Code_Length, Pick_Method, Code_Guess),
-    print('Picked: '), println(Code_Guess), 
     blacks_and_whites(Code_Guess, Solution_Code, Blacks, Whites),
     length(Solution_Code, Code_Length), 
-    Counter1 is Counter - 1,  
+    Counter1 is Counter + 1,  
     check_and_reduce(
         Counter1, Blacks, Whites, Code_Guess, Solution_Code, Code_Length,
         Possible_Codes, Pick_Method, Used_Attempts).
@@ -125,6 +134,18 @@ pick(Possible_Codes, Code_Length, five_guess, Code_Guess) :-
 	master_pick(Code_Guess, Possible_Codes, Code_Length).
 pick(Possible_Codes, _, random, Code_Guess) :-
 	pick_random(Possible_Codes, Code_Guess).
+
+%% valid_input(+Solution_Code)
+%
+% Valiates the color list, which was entered by the user
+% Evaluates to false if user input is not in the list of colors
+valid_input([]):- println('Input is valid').
+valid_input([Solution_Code_Head|Solution_Code_Tail]):-
+	color(Solution_Code_Head),!,
+	valid_input(Solution_Code_Tail).
+valid_input([Solution_Code_Head|_]):-
+	print('\''),print(Solution_Code_Head),println('\' is not a valid color'),
+	print('Valid colors are: '), list_of_colors(X), println(X), fail.
 	
 %% blacks_and_whites(+Code_Guess, +Code_Answer, ?Blacks, ?Whites)
 %
@@ -185,14 +206,15 @@ remove_impossible_codes(
 	   Code_Guess, Blacks, Whites, Possible_Codes_R, Poss_Codes_Left).
 
 %% pick_random(+Possible_Codes, -Chosen_Code)
-%
+% 
 % First selection mode. Randomly chooses a code from the Possible_Codes.
 pick_random(Possible_Codes, Chosen_Code) :-
 	length(Possible_Codes, Length),
 	%random_between(1, Length, Index) does not work with linux swi prolog
-	random(1, Length + 1, Index),
+	random(0, Length, Index),
 	% get the Index'th element from Possible_Codes
-	nth1(Index, Possible_Codes, Chosen_Code).
+	nth0(Index, Possible_Codes, Chosen_Code)
+	,print('Random picked possible code: '),println(Chosen_Code).
 
 %% master_pick(-Code_Guess, +Possible_Codes, +Code_Length)
 %
@@ -273,7 +295,7 @@ score_all_codes(
 % Black_White_Permutation.
 score_possibility(
     Code, Possible_Codes, Possible_Codes_Size, [Blacks, Whites], Score
-) :-
+) :- 
 	findall(
 	   Possible_Code, (
 	       member(Possible_Code, Possible_Codes),
@@ -302,9 +324,8 @@ whites_blacks_relation([Blacks, Whites], Code_Length) :-
 pick_best(Scores, Code_Guess) :- 
     pb_h(Scores, [[],0], Code_Guess).
 pb_h([], [Code_Guess, Score], Code_Guess) :-
-    printf('I pick: '), write(Code_Guess), 
-    printf(' it eliminates at least '),  write(Score), 
-    println(' possibilities').
+    print('5-guess picks: '), print(Code_Guess), 
+    print(' eliminating at least '),  println(Score).
 pb_h([[Guess, Score]|Scores_R], [_, BestScore], Code_Guess) :- 
     Score >= BestScore, 
     pb_h(Scores_R, [Guess, Score], Code_Guess).
