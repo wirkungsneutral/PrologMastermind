@@ -4,19 +4,13 @@ implementation with random choice.
 
 Filename: mastermind.pl
 Version: 1.0.0
-Authors: Tobias Schöneberger, Matthis Hauschild
+Authors: Tobias Schoeneberger, Matthis Hauschild
 */
 :- use_module(library(random)).
 :- use_module(library(clpfd)).
 
-% TODO kann das geloescht werden?
-%http://www.cs.oswego.edu/~odendahl/coursework/notes/prolog/synopsis/con.html
-%a([]) :- get_random_color(C),print_color(C).
-%get_random_color(C):- random_between(1,6,C).
-%test([]) : give_white([1,3,3,1],[1, 2, 2 ,2],).
 
 println(A):-write(A),nl.
-%print(A):-write(A).
 
 % add supported colors to the knowledge base
 color(red).
@@ -36,8 +30,6 @@ initial_code(4, _, [red,red,blue,blue]).
 initial_code(5, _, [red,red,blue,blue,blue]).
 initial_code(6, _, [red,red,red,blue,blue,blue]).
 initial_code(7, _, [red,red,red,blue,blue,blue,blue]).
-
-initial_code(1, random, [red]). 
 
 % there are two supported methods:
 %   random:     The selection of the next guess is random (very fast)
@@ -63,12 +55,13 @@ guess_code(Solution_Code) :-
 % starts to reduce the set of all possible answers until it gets the one 
 % solution.
 guess_code(Solution_Code,Pick_Method,Used_Attempts) :-
-	valid_input(Solution_Code),
+	print('[init] '),valid_input(Solution_Code),
 	length(Solution_Code, Code_Length),
 	pick_method(Pick_Method),
 	initial_code(Code_Length, Pick_Method, Initial_Code), 
-	print('[init] Searching for code '),print(Solution_Code),
-	print(' with length '), println(Code_Length),
+	print('[init] Searching for code: '),println(Solution_Code),
+	print('[init] Code Length: '), println(Code_Length),
+	print('[init] Algorithm: '), println(Pick_Method),
 	blacks_and_whites(Initial_Code, Solution_Code, Blacks, Whites),!,  
 	create_all_code_permutations(Code_Length, All_Code_Permutations, _),
 	length(All_Code_Permutations,Length_All_Code_Permutations),
