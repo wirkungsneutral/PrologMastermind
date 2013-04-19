@@ -9,9 +9,6 @@ Authors: Tobias Schoeneberger, Matthis Hauschild
 :- use_module(library(random)).
 :- use_module(library(clpfd)).
 
-
-println(A):-write(A),nl.
-
 % add supported colors to the knowledge base
 color(red).
 color(orange).
@@ -355,8 +352,13 @@ ben_h([Code|Codes], Pick_Method, Sum, Min, Max, Counter) :-
 	Sum is Attempts + Sum_Codes,
 	Counter is Cnt + 1.
 
+
 min(A,B,A) :- A < B.	
 min(A,B,B) :- A >= B.
 
+
 max(A,B,B) :- A =< B.	
 max(A,B,A) :- A > B.
+
+
+println(A):-write(A),nl.
